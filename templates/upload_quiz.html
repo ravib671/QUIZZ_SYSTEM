@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="mb-3">Upload Weekly Quiz (CSV)</h4>
+        <form method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">Quiz Title</label>
+            <input class="form-control" type="text" name="title" placeholder="Week 1 Viva" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quiz Date</label>
+            <input class="form-control" type="date" name="quiz_date" required>
+          </div>
+          <div class="mb-3 form-check">
+            <input class="form-check-input" type="checkbox" name="enabled" id="enabled" checked>
+            <label class="form-check-label" for="enabled">Enable immediately for students</label>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">CSV File (6 columns)</label>
+            <input class="form-control" type="file" name="quiz_csv" accept=".csv" required>
+            <div class="form-text">Format: question, option_a, option_b, option_c, option_d, correct_option</div>
+          </div>
+          <button class="btn btn-success" type="submit">Upload Quiz</button>
+          <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">Back</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

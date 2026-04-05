@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Student Dashboard</h3>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge text-bg-primary fs-6">Running Avg (out of 10): {{ avg_out_of_10 if avg_out_of_10 is not none else 'N/A' }}</span>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('change_password') }}">Change Password</a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Available Quizzes</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for quiz in available_quizzes %}
+        <tr>
+          <td>{{ quiz.title }}</td>
+          <td>{{ quiz.quiz_date }}</td>
+          <td>
+            {% if quiz.attempted == 1 %}
+              <span class="badge text-bg-secondary">Attempted</span>
+            {% else %}
+              <span class="badge text-bg-success">Open</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if quiz.attempted == 0 %}
+              <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">Attempt</a>
+            {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled>Locked</button>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="text-center p-3">No enabled quizzes found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Previous Attempts (Date-wise)</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Quiz</th>
+          <th>Date</th>
+          <th>Marks (out of 5)</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for item in history %}
+        <tr>
+          <td>{{ item.title }}</td>
+          <td>{{ item.quiz_date }}</td>
+          <td>{{ item.marks_out_of_5 }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="text-center p-3">No attempts yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

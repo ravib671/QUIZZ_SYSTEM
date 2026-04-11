@@ -1,7 +1,6 @@
 import csv
 import io
 import os
-import re
 from functools import wraps
 
 from dotenv import load_dotenv
@@ -14,7 +13,6 @@ from flask import (
     session,
     url_for,
 )
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import execute_query, fetch_all, fetch_one
 
@@ -22,26 +20,6 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "change-me")
-
-
-def is_password_strong(password):
-    if len(password) < 8:
-        return False
-    if not re.search(r"[A-Z]", password):
-        return False
-    if not re.search(r"[a-z]", password):
-        return False
-    if not re.search(r"\d", password):
-        return False
-    if not re.search(r"[^A-Za-z0-9]", password):
-        return False
-    return True
-
-
-def verify_password(stored_password, entered_password):
-    if stored_password.startswith(("pbkdf2:", "scrypt:")):
-        return check_password_hash(stored_password, entered_password)
-    return stored_password == entered_password
 
 
 def login_required(role=None):
@@ -75,63 +53,19 @@ def login():
         password = request.form.get("password", "").strip()
 
         user = fetch_one(
-            "SELECT id, username, full_name, role, password FROM users WHERE username=%s",
-            (username,),
+            "SELECT id, username, role FROM users WHERE username=%s AND password=%s",
+            (username, password),
         )
 
-        if user and verify_password(user["password"], password):
+        if user:
             session["user_id"] = user["id"]
             session["username"] = user["username"]
-            session["full_name"] = user.get("full_name")
             session["role"] = user["role"]
             flash("Login successful.", "success")
             return redirect(url_for("dashboard"))
         flash("Invalid credentials.", "danger")
 
     return render_template("login.html")
-
-
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        usn = request.form.get("usn", "").strip().upper()
-        full_name = request.form.get("full_name", "").strip()
-        password = request.form.get("password", "").strip()
-        confirm_password = request.form.get("confirm_password", "").strip()
-
-        if not usn or not full_name or not password or not confirm_password:
-            flash("All fields are required.", "danger")
-            return redirect(url_for("register"))
-
-        if not re.fullmatch(r"[A-Z0-9]{6,20}", usn):
-            flash("USN must be 6-20 characters (A-Z, 0-9 only).", "danger")
-            return redirect(url_for("register"))
-
-        if password != confirm_password:
-            flash("Passwords do not match.", "danger")
-            return redirect(url_for("register"))
-
-        if not is_password_strong(password):
-            flash(
-                "Password must be at least 8 chars and include uppercase, lowercase, digit, and special character.",
-                "danger",
-            )
-            return redirect(url_for("register"))
-
-        existing_user = fetch_one("SELECT id FROM users WHERE username=%s", (usn,))
-        if existing_user:
-            flash("USN already registered. Please login.", "warning")
-            return redirect(url_for("login"))
-
-        hashed_password = generate_password_hash(password)
-        execute_query(
-            "INSERT INTO users (username, full_name, password, role) VALUES (%s, %s, %s, 'student')",
-            (usn, full_name, hashed_password),
-        )
-        flash("Account created successfully. Please login.", "success")
-        return redirect(url_for("login"))
-
-    return render_template("register.html")
 
 
 @app.route("/logout")
@@ -193,43 +127,6 @@ def student_dashboard():
         history=history,
         avg_out_of_10=running_avg["avg_out_of_10"] if running_avg else None,
     )
-
-
-@app.route("/student/change-password", methods=["GET", "POST"])
-@login_required(role="student")
-def change_password():
-    if request.method == "POST":
-        current_password = request.form.get("current_password", "").strip()
-        new_password = request.form.get("new_password", "").strip()
-        confirm_password = request.form.get("confirm_password", "").strip()
-
-        user = fetch_one(
-            "SELECT id, password FROM users WHERE id=%s",
-            (session["user_id"],),
-        )
-        if not user or not verify_password(user["password"], current_password):
-            flash("Current password is incorrect.", "danger")
-            return redirect(url_for("change_password"))
-
-        if new_password != confirm_password:
-            flash("New password and confirm password do not match.", "danger")
-            return redirect(url_for("change_password"))
-
-        if not is_password_strong(new_password):
-            flash(
-                "Password must be at least 8 chars and include uppercase, lowercase, digit, and special character.",
-                "danger",
-            )
-            return redirect(url_for("change_password"))
-
-        execute_query(
-            "UPDATE users SET password=%s WHERE id=%s",
-            (generate_password_hash(new_password), session["user_id"]),
-        )
-        flash("Password changed successfully.", "success")
-        return redirect(url_for("student_dashboard"))
-
-    return render_template("change_password.html")
 
 
 @app.route("/student/quiz/<int:quiz_id>", methods=["GET", "POST"])
@@ -317,7 +214,7 @@ def admin_dashboard():
             ROUND((AVG(qa.score / NULLIF(qa.total_questions, 0) * 5) / 5) * 10, 2) AS avg_out_of_10
         FROM users u
         LEFT JOIN quiz_attempts qa ON qa.student_id=u.id
-        WHERE LOWER(u.role)='student'
+        WHERE u.role='student'
         GROUP BY u.id, u.username
         ORDER BY u.username ASC
         """
@@ -340,26 +237,6 @@ def admin_dashboard():
         for date_key in quiz_dates:
             row["date_marks"][date_key] = marks_lookup.get((student["student_id"], date_key))
         marks_matrix.append(row)
-
-    # Fallback for legacy data where user role values may be inconsistent
-    # but attempts already exist.
-    if not marks_matrix and marks:
-        fallback_students = {}
-        for row in marks:
-            fallback_students[row["student_id"]] = row["username"]
-
-        for student_id, username in sorted(fallback_students.items(), key=lambda s: s[1]):
-            student_marks = [
-                m["marks_out_of_5"] for m in marks if m["student_id"] == student_id
-            ]
-            avg_out_of_10 = None
-            if student_marks:
-                avg_out_of_10 = round((sum(student_marks) / len(student_marks) / 5) * 10, 2)
-
-            row = {"username": username, "avg_out_of_10": avg_out_of_10, "date_marks": {}}
-            for date_key in quiz_dates:
-                row["date_marks"][date_key] = marks_lookup.get((student_id, date_key))
-            marks_matrix.append(row)
 
     return render_template(
         "admin_dashboard.html",

@@ -53,23 +53,23 @@
       <thead>
         <tr>
           <th>Student</th>
-          <th>Quiz</th>
-          <th>Date</th>
-          <th>Marks (out of 5)</th>
+          {% for d in quiz_dates %}
+            <th>{{ d }} (Marks)</th>
+          {% endfor %}
           <th>Running Avg (out of 10)</th>
         </tr>
       </thead>
       <tbody>
-      {% for m in marks %}
+      {% for student in marks_matrix %}
         <tr>
-          <td>{{ m.username }}</td>
-          <td>{{ m.title }}</td>
-          <td>{{ m.quiz_date }}</td>
-          <td>{{ m.marks_out_of_5 }}</td>
-          <td>{{ m.avg_out_of_10 }}</td>
+          <td>{{ student.username }}</td>
+          {% for d in quiz_dates %}
+            <td>{{ student.date_marks[d] if student.date_marks[d] is not none else '-' }}</td>
+          {% endfor %}
+          <td>{{ student.avg_out_of_10 if student.avg_out_of_10 is not none else 'N/A' }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="5" class="text-center p-3">No attempts yet.</td></tr>
+        <tr><td colspan="{{ 2 + (quiz_dates|length) }}" class="text-center p-3">No students found.</td></tr>
       {% endfor %}
       </tbody>
     </table>

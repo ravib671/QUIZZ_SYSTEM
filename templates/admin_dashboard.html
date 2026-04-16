@@ -3,7 +3,53 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h3>Admin Dashboard</h3>
-  <a class="btn btn-primary" href="{{ url_for('upload_quiz') }}">Create / Upload Quiz</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin_change_password') }}">Change Password</a>
+    <a class="btn btn-success" href="{{ url_for('export_admin_marks') }}">Download Marks (Excel)</a>
+    <a class="btn btn-primary" href="{{ url_for('upload_quiz') }}">Create / Upload Quiz</a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Add Your Subject Mapping (Sem/Section/Subject)</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('add_admin_assignment') }}" class="row g-2">
+      <div class="col-md-3"><input type="number" min="1" max="8" class="form-control" name="sem" placeholder="Semester" required></div>
+      <div class="col-md-3">
+        <select class="form-select" name="section" required>
+          <option value="">Section</option>
+          {% for ch in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+          <option value="{{ ch }}">{{ ch }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3"><input type="text" maxlength="4" class="form-control" name="subject_code" placeholder="Subject Code e.g. IWP" required></div>
+      <div class="col-md-3"><button class="btn btn-outline-primary w-100" type="submit">Add Mapping</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Filter Quiz List (Sem / Section / Subject)</div>
+  <div class="card-body">
+    <form method="get" action="{{ url_for('admin_dashboard') }}" class="row g-2">
+      <div class="col-md-9">
+        <select class="form-select" name="mapping">
+          <option value="">Select mapping (Sem/Section/Subject)</option>
+          {% for a in assignments %}
+          {% set val = a.sem ~ '|' ~ a.section ~ '|' ~ a.subject_code %}
+          <option value="{{ val }}" {% if filter_mapping == val %}selected{% endif %}>
+            Sem {{ a.sem }} - {{ a.section }} - {{ a.subject_code }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-primary w-100" type="submit">Apply</button>
+        <a class="btn btn-outline-secondary w-100" href="{{ url_for('admin_dashboard') }}">Reset</a>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div class="card mb-4">
@@ -14,9 +60,15 @@
         <tr>
           <th>Title</th>
           <th>Date</th>
+          <th>Sem</th>
+          <th>Section</th>
+          <th>Batch</th>
+          <th>Subject</th>
+          <th>Timer (min)</th>
+          <th>Waiting Count</th>
+          <th>Status</th>
           <th>Questions</th>
-          <th>Enabled</th>
-          <th>Action</th>
+          <th>Start</th>
         </tr>
       </thead>
       <tbody>
@@ -24,25 +76,59 @@
         <tr>
           <td>{{ q.title }}</td>
           <td>{{ q.quiz_date }}</td>
-          <td>{{ q.question_count }}</td>
+          <td>{{ q.sem }}</td>
+          <td>{{ q.section }}</td>
+          <td>{{ q.batch if q.batch else '-' }}</td>
+          <td>{{ q.subject_code }}</td>
+          <td>{{ q.duration_minutes }}</td>
+          <td id="waiting-count-{{ q.id }}">{{ q.waiting_count }}</td>
           <td>
-            {% if q.enabled == 1 %}
-              <span class="badge text-bg-success">Enabled</span>
+            {% if q.quiz_status == 'COMPLETED' %}
+              <span class="badge text-bg-secondary" id="started-status-{{ q.id }}">Completed</span>
+            {% elif q.quiz_status == 'EXPIRED' %}
+              <span class="badge text-bg-danger" id="started-status-{{ q.id }}">Expired</span>
+            {% elif q.quiz_status == 'STARTED' %}
+              <span class="badge text-bg-success" id="started-status-{{ q.id }}">Started</span>
             {% else %}
-              <span class="badge text-bg-secondary">Disabled</span>
+              <span class="badge text-bg-warning" id="started-status-{{ q.id }}">Not Started</span>
             {% endif %}
           </td>
+          <td>{{ q.question_count }}</td>
           <td>
-            <form method="post" action="{{ url_for('toggle_quiz', quiz_id=q.id) }}">
-              <button class="btn btn-sm btn-outline-primary" type="submit">Toggle</button>
+            <form method="post" action="{{ url_for('start_quiz', quiz_id=q.id) }}">
+              <button class="btn btn-sm btn-success" type="submit" {% if q.started_at %}disabled{% endif %}>Start Quiz</button>
             </form>
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="5" class="text-center p-3">No quizzes uploaded yet.</td></tr>
+        <tr><td colspan="11" class="text-center p-3">No quizzes uploaded yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Semester Cleanup (Download final sheet then delete)</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('Are you sure? A copy of the final sheet will be downloaded before delete.');">
+      <div class="row g-2">
+        <div class="col-md-8">
+          <select class="form-select" name="assignment_cleanup" required onchange="syncCleanup(this.value)">
+            <option value="">Select Sem/Section/Subject</option>
+            {% for a in assignments %}
+            <option value="{{ a.sem }}|{{ a.section }}|{{ a.subject_code }}">Sem {{ a.sem }} - {{ a.section }} - {{ a.subject_code }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="sem" id="cleanup-sem">
+          <input type="hidden" name="section" id="cleanup-section">
+          <input type="hidden" name="subject_code" id="cleanup-subject">
+        </div>
+        <div class="col-md-4">
+          <button class="btn btn-danger w-100" type="submit">Download + Delete Data</button>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -53,8 +139,10 @@
       <thead>
         <tr>
           <th>Student</th>
-          {% for d in quiz_dates %}
-            <th>{{ d }} (Marks)</th>
+          <th>Name</th>
+          <th>Batch</th>
+          {% for col in quiz_columns %}
+            <th>{{ col.label }} (Marks)</th>
           {% endfor %}
           <th>Running Avg (out of 10)</th>
         </tr>
@@ -63,16 +151,67 @@
       {% for student in marks_matrix %}
         <tr>
           <td>{{ student.username }}</td>
-          {% for d in quiz_dates %}
-            <td>{{ student.date_marks[d] if student.date_marks[d] is not none else '-' }}</td>
+          <td>{{ student.full_name if student.full_name else '-' }}</td>
+          <td>{{ student.batch if student.batch else '-' }}</td>
+          {% for col in quiz_columns %}
+            <td>{{ student.date_marks[col.quiz_id] if student.date_marks[col.quiz_id] is not none else '-' }}</td>
           {% endfor %}
           <td>{{ student.avg_out_of_10 if student.avg_out_of_10 is not none else 'N/A' }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="{{ 2 + (quiz_dates|length) }}" class="text-center p-3">No students found.</td></tr>
+        <tr><td colspan="{{ 4 + (quiz_columns|length) }}" class="text-center p-3">No attempted students found for selected mapping.</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+<script>
+  (function () {
+    async function updateWaitingCounts() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const waitUrl = "{{ url_for('admin_waiting_counts') }}" + (params.toString() ? ("?" + params.toString()) : "");
+        const resp = await fetch(waitUrl, {
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        Object.entries(data).forEach(([quizId, payload]) => {
+          const waitingEl = document.getElementById(`waiting-count-${quizId}`);
+          const startedEl = document.getElementById(`started-status-${quizId}`);
+          if (waitingEl) {
+            waitingEl.textContent = payload.waiting_count;
+          }
+          if (startedEl) {
+            if (payload.quiz_status === "COMPLETED") {
+              startedEl.textContent = "Completed";
+              startedEl.className = "badge text-bg-secondary";
+            } else if (payload.quiz_status === "EXPIRED") {
+              startedEl.textContent = "Expired";
+              startedEl.className = "badge text-bg-danger";
+            } else if (payload.quiz_status === "STARTED") {
+              startedEl.textContent = "Started";
+              startedEl.className = "badge text-bg-success";
+            } else {
+              startedEl.textContent = "Not Started";
+              startedEl.className = "badge text-bg-warning";
+            }
+          }
+        });
+      } catch (err) {
+        // silently ignore polling failures
+      }
+    }
+
+    updateWaitingCounts();
+    setInterval(updateWaitingCounts, 3000);
+  })();
+
+  function syncCleanup(val) {
+    const [sem, section, subject] = (val || "||").split("|");
+    document.getElementById("cleanup-sem").value = sem || "";
+    document.getElementById("cleanup-section").value = section || "";
+    document.getElementById("cleanup-subject").value = subject || "";
+  }
+</script>
 {% endblock %}

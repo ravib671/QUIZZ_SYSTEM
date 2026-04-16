@@ -15,14 +15,46 @@
             <label class="form-label">Quiz Date</label>
             <input class="form-control" type="date" name="quiz_date" required>
           </div>
+<<<<<<< codex/build-web-based-quiz-automation-system-6z9izk
+          <div class="mb-3">
+            <label class="form-label">Sem / Section / Subject</label>
+            <select class="form-select" name="assignment" id="assignment-select" required onchange="syncAssignment(this.value)">
+              <option value="">Select assignment</option>
+              {% for a in assignments %}
+              <option value="{{ a.sem }}|{{ a.section }}|{{ a.subject_code }}">Sem {{ a.sem }} - {{ a.section }} - {{ a.subject_code }}</option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="sem" id="sem-field">
+            <input type="hidden" name="section" id="section-field">
+            <input type="hidden" name="subject_code" id="subject-field">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Batch</label>
+            <select class="form-select" name="batch" id="batch-field" required>
+              <option value="">Select assignment first</option>
+            </select>
+            <div class="form-text">For section A: A1/A2/A3, section B: B1/B2/B3, etc.</div>
+          </div>
+=======
+>>>>>>> main
           <div class="mb-3 form-check">
             <input class="form-check-input" type="checkbox" name="enabled" id="enabled" checked>
             <label class="form-check-label" for="enabled">Enable immediately for students</label>
           </div>
           <div class="mb-3">
+<<<<<<< codex/build-web-based-quiz-automation-system-6z9izk
+            <label class="form-label">Quiz Timer (minutes)</label>
+            <input class="form-control" type="number" name="duration_minutes" min="1" max="180" value="10" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">CSV File (6 columns)</label>
+            <input class="form-control" type="file" name="quiz_csv" accept=".csv" required>
+            <div class="form-text">Format: question, option_a, option_b, option_c, option_d, correct_option (minimum 5, maximum 20 questions per quiz). Each student gets random 5 questions.</div>
+=======
             <label class="form-label">CSV File (6 columns)</label>
             <input class="form-control" type="file" name="quiz_csv" accept=".csv" required>
             <div class="form-text">Format: question, option_a, option_b, option_c, option_d, correct_option</div>
+>>>>>>> main
           </div>
           <button class="btn btn-success" type="submit">Upload Quiz</button>
           <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">Back</a>
@@ -31,4 +63,28 @@
     </div>
   </div>
 </div>
+<<<<<<< codex/build-web-based-quiz-automation-system-6z9izk
+<script>
+function syncAssignment(val) {
+  const [sem, section, subject] = (val || "||").split("|");
+  document.getElementById("sem-field").value = sem || "";
+  document.getElementById("section-field").value = section || "";
+  document.getElementById("subject-field").value = subject || "";
+  const batch = document.getElementById("batch-field");
+  batch.innerHTML = "";
+  if (!section) {
+    batch.innerHTML = '<option value="">Select assignment first</option>';
+    return;
+  }
+  batch.innerHTML = '<option value="">Select</option>';
+  [1, 2, 3].forEach((idx) => {
+    const opt = document.createElement("option");
+    opt.value = `${section}${idx}`;
+    opt.textContent = `${section}${idx}`;
+    batch.appendChild(opt);
+  });
+}
+</script>
+=======
+>>>>>>> main
 {% endblock %}

@@ -3,7 +3,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h3>Student Dashboard</h3>
-  <span class="badge text-bg-primary fs-6">Running Avg (out of 10): {{ avg_out_of_10 if avg_out_of_10 is not none else 'N/A' }}</span>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge text-bg-primary fs-6">Running Avg (out of 10): {{ avg_out_of_10 if avg_out_of_10 is not none else 'N/A' }}</span>
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('student_profile') }}">Edit Profile</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('change_password') }}">Change Password</a>
+  </div>
 </div>
 
 <div class="card mb-4">
@@ -13,6 +17,10 @@
       <thead>
         <tr>
           <th>Title</th>
+          <th>Sem</th>
+          <th>Section</th>
+          <th>Batch</th>
+          <th>Subject</th>
           <th>Date</th>
           <th>Status</th>
           <th>Action</th>
@@ -22,6 +30,10 @@
       {% for quiz in available_quizzes %}
         <tr>
           <td>{{ quiz.title }}</td>
+          <td>{{ quiz.sem }}</td>
+          <td>{{ quiz.section }}</td>
+          <td>{{ quiz.batch if quiz.batch else '-' }}</td>
+          <td>{{ quiz.subject_code }}</td>
           <td>{{ quiz.quiz_date }}</td>
           <td>
             {% if quiz.attempted == 1 %}
@@ -39,7 +51,7 @@
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="4" class="text-center p-3">No enabled quizzes found.</td></tr>
+        <tr><td colspan="8" class="text-center p-3">No enabled quizzes found.</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -53,6 +65,7 @@
       <thead>
         <tr>
           <th>Quiz</th>
+          <th>Subject</th>
           <th>Date</th>
           <th>Marks (out of 5)</th>
         </tr>
@@ -61,11 +74,12 @@
       {% for item in history %}
         <tr>
           <td>{{ item.title }}</td>
+          <td>{{ item.subject_code }}</td>
           <td>{{ item.quiz_date }}</td>
           <td>{{ item.marks_out_of_5 }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="3" class="text-center p-3">No attempts yet.</td></tr>
+        <tr><td colspan="4" class="text-center p-3">No attempts yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>

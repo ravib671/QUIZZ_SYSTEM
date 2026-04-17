@@ -51,6 +51,21 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+<<<<<<< HEAD
+=======
+CREATE TABLE IF NOT EXISTS quiz_attempt_answers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    attempt_id INT NOT NULL,
+    question_id INT NOT NULL,
+    selected_option ENUM('A', 'B', 'C', 'D') NULL,
+    is_correct TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_attempt_question (attempt_id, question_id),
+    FOREIGN KEY (attempt_id) REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+    FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE
+);
+
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
 CREATE TABLE IF NOT EXISTS quiz_waiting (
     id INT AUTO_INCREMENT PRIMARY KEY,
     quiz_id INT NOT NULL,
@@ -61,6 +76,21 @@ CREATE TABLE IF NOT EXISTS quiz_waiting (
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+<<<<<<< HEAD
+=======
+CREATE TABLE IF NOT EXISTS record_book_marks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    quiz_id INT NOT NULL,
+    student_id INT NOT NULL,
+    marks_out_of_10 DECIMAL(5,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_record_book_quiz_student (quiz_id, student_id),
+    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
 CREATE TABLE IF NOT EXISTS admin_subject_assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     admin_id INT NOT NULL,

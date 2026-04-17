@@ -5,6 +5,11 @@
   <h3>Student Dashboard</h3>
   <div class="d-flex align-items-center gap-2">
     <span class="badge text-bg-primary fs-6">Running Avg (out of 10): {{ avg_out_of_10 if avg_out_of_10 is not none else 'N/A' }}</span>
+<<<<<<< HEAD
+=======
+    <span class="badge text-bg-info fs-6">Record Avg (out of 10): {{ record_avg_out_of_10 if record_avg_out_of_10 is not none else 'N/A' }}</span>
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('student_profile') }}">Edit Profile</a>
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('change_password') }}">Change Password</a>
   </div>
 </div>
@@ -67,6 +72,7 @@
           <th>Subject</th>
           <th>Date</th>
           <th>Marks (out of 5)</th>
+          <th>Answer Review</th>
         </tr>
       </thead>
       <tbody>
@@ -76,9 +82,42 @@
           <td>{{ item.subject_code }}</td>
           <td>{{ item.quiz_date }}</td>
           <td>{{ item.marks_out_of_5 }}</td>
+          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('review_quiz_attempt', quiz_id=item.quiz_id) }}">View</a></td>
         </tr>
       {% else %}
+<<<<<<< HEAD
         <tr><td colspan="4" class="text-center p-3">No attempts yet.</td></tr>
+=======
+        <tr><td colspan="5" class="text-center p-3">No attempts yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header">Record Book Marks (out of 10)</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Quiz</th>
+          <th>Subject</th>
+          <th>Date</th>
+          <th>Record Mark</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in record_history %}
+        <tr>
+          <td>{{ row.title }}</td>
+          <td>{{ row.subject_code }}</td>
+          <td>{{ row.quiz_date }}</td>
+          <td>{{ row.marks_out_of_10 }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="text-center p-3">No record book marks entered yet.</td></tr>
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
       {% endfor %}
       </tbody>
     </table>

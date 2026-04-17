@@ -8,6 +8,7 @@ A local web application to manage weekly MCQ viva quizzes for students and facul
 - Login with student credentials.
 - View currently enabled quiz (one attempt only).
 - Attempt enabled quiz for the current week/date.
+- For each attempt, student receives **random 5 questions** from the uploaded question pool.
 - View date-wise history of attempted quizzes and marks (out of 5).
 - View running average converted to **out of 10**.
 
@@ -23,6 +24,20 @@ A local web application to manage weekly MCQ viva quizzes for students and facul
 - Enable/disable quizzes for student attempts.
 - View all quizzes date-wise.
 - View all student marks date-wise and running average out of 10.
+- Upload supports **5 to 20 questions per quiz**.
+- Set quiz timer (minutes). Quiz auto-submits when timer expires.
+- Admin can monitor waiting-count and explicitly start quiz; students can attempt only after start command.
+- Quiz creation now requires `Sem`, `Section`, and `Subject Code` (subject must be assigned to that faculty).
+- Status values in admin dashboard: `Not Started`, `Started`, `Completed`, `Expired`.
+- Semester cleanup supports **Download final sheet + delete data** flow.
+
+### Super Admin
+- Uses same login page with hardcoded credentials via env vars:
+  - `SUPER_ADMIN_USERNAME` (default: `superadmin`)
+  - `SUPER_ADMIN_PASSWORD` (default: `Super@123`)
+- Can create faculty admin accounts (`faculty code`, `name`, `email`, username/password).
+- Can assign subject combinations (`sem`, `section`, `subject_code`) to each admin.
+- Can reset password for any existing user (student/admin) with a temporary strong password.
 
 ## Tech Stack
 - Python 3 + Flask

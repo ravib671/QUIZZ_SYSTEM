@@ -314,7 +314,11 @@ def student_dashboard():
 
     history = fetch_all(
         """
+<<<<<<< HEAD
         SELECT q.title, q.quiz_date, q.subject_code, q.sem, q.section, q.batch, qa.score, qa.total_questions,
+=======
+        SELECT q.id AS quiz_id, q.title, q.quiz_date, q.subject_code, q.sem, q.section, q.batch, qa.score, qa.total_questions,
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
                ROUND((qa.score / NULLIF(qa.total_questions, 0)) * 5, 2) AS marks_out_of_5
         FROM quiz_attempts qa
         JOIN quizzes q ON q.id=qa.quiz_id
@@ -322,6 +326,36 @@ def student_dashboard():
         ORDER BY q.quiz_date DESC
         """,
         (user_id,),
+    )
+
+    record_history = fetch_all(
+        """
+<<<<<<< HEAD
+        SELECT
+            ROUND(
+                (
+                    COALESCE(SUM(qa.score / NULLIF(qa.total_questions, 0) * 5), 0)
+                    / NULLIF(COUNT(DISTINCT q.id), 0)
+                    / 5
+                ) * 10,
+                2
+            ) AS avg_out_of_10
+        FROM quizzes q
+        LEFT JOIN quiz_attempts qa
+            ON qa.quiz_id=q.id AND qa.student_id=%s
+        WHERE q.quiz_date <= CURDATE()
+          AND q.sem=%s
+          AND q.section=%s
+          AND (q.batch=%s OR q.batch IS NULL)
+=======
+        SELECT q.id AS quiz_id, q.title, q.quiz_date, q.subject_code, rb.marks_out_of_10
+        FROM record_book_marks rb
+        JOIN quizzes q ON q.id=rb.quiz_id
+        WHERE rb.student_id=%s
+        ORDER BY q.quiz_date DESC, q.id DESC
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
+        """,
+        (user_id, student["sem"], student["section"], student["batch"]),
     )
 
     running_avg = fetch_one(
@@ -346,11 +380,27 @@ def student_dashboard():
         (user_id, student["sem"], student["section"], student["batch"]),
     )
 
+    record_avg = fetch_one(
+        """
+        SELECT ROUND(AVG(rb.marks_out_of_10), 2) AS avg_record_book_out_of_10
+        FROM record_book_marks rb
+        JOIN quizzes q ON q.id=rb.quiz_id
+        WHERE rb.student_id=%s
+          AND q.quiz_date <= CURDATE()
+          AND q.sem=%s
+          AND q.section=%s
+          AND (q.batch=%s OR q.batch IS NULL)
+        """,
+        (user_id, student["sem"], student["section"], student["batch"]),
+    )
+
     return render_template(
         "student_dashboard.html",
         available_quizzes=available_quizzes,
         history=history,
+        record_history=record_history,
         avg_out_of_10=running_avg["avg_out_of_10"] if running_avg else None,
+        record_avg_out_of_10=record_avg["avg_record_book_out_of_10"] if record_avg else None,
     )
 
 
@@ -549,18 +599,36 @@ def attempt_quiz(quiz_id):
         timed_out = elapsed_seconds >= allowed_seconds
 
         correct_count = 0
+<<<<<<< HEAD
+=======
+        submitted_answers = []
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
         for q in selected_questions:
             selected = request.form.get(f"question_{q['id']}", "").strip().upper()
             if selected == q["correct_option"]:
                 correct_count += 1
+            submitted_answers.append((q["id"], selected, 1 if selected == q["correct_option"] else 0))
 
-        execute_query(
+        attempt_id = execute_query(
             """
             INSERT INTO quiz_attempts (quiz_id, student_id, score, total_questions)
             VALUES (%s, %s, %s, %s)
             """,
             (quiz_id, user_id, correct_count, len(selected_questions)),
         )
+        answer_rows = []
+        for question_id, selected_option, is_correct in submitted_answers:
+            normalized_selected = selected_option if selected_option in {"A", "B", "C", "D"} else None
+            answer_rows.append((attempt_id, question_id, normalized_selected, is_correct))
+        if answer_rows:
+            execute_query(
+                """
+                INSERT INTO quiz_attempt_answers (attempt_id, question_id, selected_option, is_correct)
+                VALUES (%s, %s, %s, %s)
+                """,
+                answer_rows,
+                many=True,
+            )
 
         session.pop(session_key, None)
         execute_query(
@@ -582,6 +650,66 @@ def attempt_quiz(quiz_id):
         start_time=started_at_epoch,
         server_now=int(time.time()),
     )
+<<<<<<< HEAD
+=======
+
+
+@app.route("/student/quiz/<int:quiz_id>/review")
+@login_required(role="student")
+def review_quiz_attempt(quiz_id):
+    user_id = session["user_id"]
+    student = fetch_one("SELECT sem, section, batch FROM users WHERE id=%s", (user_id,))
+    quiz = fetch_one(
+        """
+        SELECT q.id, q.title, q.quiz_date, q.sem, q.section, q.batch,
+               (SELECT COUNT(*) FROM quiz_waiting qw WHERE qw.quiz_id=q.id) AS waiting_count,
+               (SELECT COUNT(*) FROM quiz_attempts qa2 WHERE qa2.quiz_id=q.id) AS attempt_count
+        FROM quizzes q
+        WHERE q.id=%s
+        """,
+        (quiz_id,),
+    )
+    if not quiz or not student:
+        flash("Quiz not found.", "warning")
+        return redirect(url_for("student_dashboard"))
+    if (
+        int(quiz["sem"]) != int(student["sem"])
+        or quiz["section"] != student["section"]
+        or (quiz.get("batch") and quiz["batch"] != student["batch"])
+    ):
+        flash("Unauthorized quiz access.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    attempt = fetch_one(
+        "SELECT id, score, total_questions, attempted_at FROM quiz_attempts WHERE quiz_id=%s AND student_id=%s",
+        (quiz_id, user_id),
+    )
+    if not attempt:
+        flash("You have not attempted this quiz yet.", "warning")
+        return redirect(url_for("student_dashboard"))
+
+    is_completed = bool(quiz["attempt_count"] > 0 and quiz["waiting_count"] == 0)
+    if not is_completed:
+        flash("Answer review will be available after all students submit.", "info")
+        return redirect(url_for("student_dashboard"))
+
+    answers = fetch_all(
+        """
+        SELECT q.question, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option,
+               a.selected_option, a.is_correct
+        FROM quiz_attempt_answers a
+        JOIN quiz_questions q ON q.id=a.question_id
+        WHERE a.attempt_id=%s
+        ORDER BY q.id ASC
+        """,
+        (attempt["id"],),
+    )
+    if not answers:
+        flash("No detailed answers available for this attempt.", "warning")
+        return redirect(url_for("student_dashboard"))
+
+    return render_template("review_quiz.html", quiz=quiz, attempt=attempt, answers=answers)
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
 
 
 @app.route("/admin")
@@ -691,6 +819,10 @@ def admin_dashboard():
     marks_matrix = []
     for student in students:
         row = {
+<<<<<<< HEAD
+=======
+            "student_id": student["student_id"],
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
             "username": student["username"],
             "full_name": student.get("full_name"),
             "batch": student.get("batch"),
@@ -711,11 +843,60 @@ def admin_dashboard():
         row["avg_out_of_10"] = round((sum_marks / eligible_conducted / 5) * 10, 2) if eligible_conducted > 0 else None
         marks_matrix.append(row)
 
+<<<<<<< HEAD
+=======
+    record_rows = fetch_all(
+        f"""
+        SELECT rb.student_id, rb.quiz_id, rb.marks_out_of_10
+        FROM record_book_marks rb
+        JOIN quizzes q ON q.id=rb.quiz_id
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    )
+    record_lookup = {(str(r["student_id"]), str(r["quiz_id"])): float(r["marks_out_of_10"]) for r in record_rows}
+
+    record_matrix = []
+    for student in students:
+        row = {
+            "student_id": student["student_id"],
+            "username": student["username"],
+            "full_name": student.get("full_name"),
+            "batch": student.get("batch"),
+            "date_marks": {},
+        }
+        total_record = 0.0
+        eligible_record_count = 0
+        for column in quiz_columns:
+            quiz_id = column["quiz_id"]
+            is_eligible = (column.get("batch") is None) or (column.get("batch") == student.get("batch"))
+            if quiz_id in conducted_quiz_ids and is_eligible:
+                mark = record_lookup.get((str(student["student_id"]), quiz_id))
+                row["date_marks"][quiz_id] = mark
+                if mark is not None:
+                    total_record += float(mark)
+                eligible_record_count += 1
+            else:
+                row["date_marks"][quiz_id] = None
+        row["avg_record_out_of_10"] = round(total_record / eligible_record_count, 2) if eligible_record_count > 0 else None
+        record_matrix.append(row)
+
+    record_quiz_options = []
+    for column in quiz_columns:
+        if column["quiz_id"] in conducted_quiz_ids:
+            record_quiz_options.append(column)
+
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
     return render_template(
         "admin_dashboard.html",
         quizzes=quizzes,
         quiz_columns=quiz_columns,
         marks_matrix=marks_matrix,
+<<<<<<< HEAD
+=======
+        record_matrix=record_matrix,
+        record_quiz_options=record_quiz_options,
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
         assignments=assignments,
         filter_sem=filter_sem,
         filter_section=filter_section,
@@ -746,6 +927,67 @@ def start_quiz(quiz_id):
     return redirect(url_for("admin_dashboard"))
 
 
+<<<<<<< HEAD
+=======
+@app.route("/admin/record-book/save", methods=["POST"])
+@login_required(role="admin")
+def save_record_book_mark():
+    admin_id = session["user_id"]
+    quiz_id = request.form.get("quiz_id", "").strip()
+    student_id = request.form.get("student_id", "").strip()
+    marks_out_of_10 = request.form.get("marks_out_of_10", "").strip()
+
+    if not quiz_id or not student_id or marks_out_of_10 == "":
+        flash("Quiz, student and record book marks are required.", "danger")
+        return redirect(url_for("admin_dashboard"))
+    if not quiz_id.isdigit() or not student_id.isdigit():
+        flash("Invalid quiz or student selected.", "danger")
+        return redirect(url_for("admin_dashboard"))
+    try:
+        marks_value = float(marks_out_of_10)
+    except ValueError:
+        flash("Record book marks must be a valid number.", "danger")
+        return redirect(url_for("admin_dashboard"))
+    if marks_value < 0 or marks_value > 10:
+        flash("Record book marks must be between 0 and 10.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    quiz = fetch_one(
+        "SELECT id, admin_id, sem, section, batch FROM quizzes WHERE id=%s",
+        (int(quiz_id),),
+    )
+    if not quiz or int(quiz["admin_id"]) != int(admin_id):
+        flash("Unauthorized quiz access.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    student = fetch_one(
+        "SELECT id, sem, section, batch FROM users WHERE id=%s AND LOWER(role)='student'",
+        (int(student_id),),
+    )
+    if not student:
+        flash("Student not found.", "warning")
+        return redirect(url_for("admin_dashboard"))
+    if (
+        int(student["sem"]) != int(quiz["sem"])
+        or student["section"] != quiz["section"]
+        or (quiz.get("batch") and student.get("batch") != quiz.get("batch"))
+    ):
+        flash("Selected student is not mapped to this quiz batch/section.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    execute_query(
+        """
+        INSERT INTO record_book_marks (quiz_id, student_id, marks_out_of_10)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE marks_out_of_10=VALUES(marks_out_of_10), updated_at=CURRENT_TIMESTAMP
+        """,
+        (int(quiz_id), int(student_id), marks_value),
+    )
+    flash("Record book marks saved.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+>>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
 @app.route("/admin/waiting-counts")
 @login_required(role="admin")
 def admin_waiting_counts():

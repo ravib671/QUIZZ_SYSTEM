@@ -13,7 +13,7 @@
     <a class="navbar-brand" href="#">Quiz System</a>
     <div class="d-flex text-white gap-3">
       {% if session.get('username') %}
-        <span>{{ session.get('username') }} ({{ session.get('role') }})</span>
+        <span>{{ session.get('full_name') or session.get('username') }} ({{ session.get('role') }})</span>
         <a class="btn btn-sm btn-outline-light" href="{{ url_for('logout') }}">Logout</a>
       {% endif %}
     </div>

@@ -6,26 +6,8 @@
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{{ url_for('admin_change_password') }}">Change Password</a>
     <a class="btn btn-success" href="{{ url_for('export_admin_marks') }}">Download Marks (Excel)</a>
+    <a class="btn btn-success" href="{{ url_for('export_record_book_marks') }}">Download Record Avg (Excel)</a>
     <a class="btn btn-primary" href="{{ url_for('upload_quiz') }}">Create / Upload Quiz</a>
-  </div>
-</div>
-
-<div class="card mb-4">
-  <div class="card-header">Add Your Subject Mapping (Sem/Section/Subject)</div>
-  <div class="card-body">
-    <form method="post" action="{{ url_for('add_admin_assignment') }}" class="row g-2">
-      <div class="col-md-3"><input type="number" min="1" max="8" class="form-control" name="sem" placeholder="Semester" required></div>
-      <div class="col-md-3">
-        <select class="form-select" name="section" required>
-          <option value="">Section</option>
-          {% for ch in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
-          <option value="{{ ch }}">{{ ch }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3"><input type="text" maxlength="4" class="form-control" name="subject_code" placeholder="Subject Code e.g. IWP" required></div>
-      <div class="col-md-3"><button class="btn btn-outline-primary w-100" type="submit">Add Mapping</button></div>
-    </form>
   </div>
 </div>
 
@@ -108,30 +90,6 @@
   </div>
 </div>
 
-<div class="card mb-4">
-  <div class="card-header">Semester Cleanup (Download final sheet then delete)</div>
-  <div class="card-body">
-    <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('Are you sure? A copy of the final sheet will be downloaded before delete.');">
-      <div class="row g-2">
-        <div class="col-md-8">
-          <select class="form-select" name="assignment_cleanup" required onchange="syncCleanup(this.value)">
-            <option value="">Select Sem/Section/Subject</option>
-            {% for a in assignments %}
-            <option value="{{ a.sem }}|{{ a.section }}|{{ a.subject_code }}">Sem {{ a.sem }} - {{ a.section }} - {{ a.subject_code }}</option>
-            {% endfor %}
-          </select>
-          <input type="hidden" name="sem" id="cleanup-sem">
-          <input type="hidden" name="section" id="cleanup-section">
-          <input type="hidden" name="subject_code" id="cleanup-subject">
-        </div>
-        <div class="col-md-4">
-          <button class="btn btn-danger w-100" type="submit">Download + Delete Data</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
 <div class="card">
   <div class="card-header">Student Marks (Week/date-wise)</div>
   <div class="card-body p-0">
@@ -142,7 +100,7 @@
           <th>Name</th>
           <th>Batch</th>
           {% for col in quiz_columns %}
-            <th>{{ col.label }} (Marks)</th>
+            <th>{{ col.quiz_date }} (Marks)</th>
           {% endfor %}
           <th>Running Avg (out of 10)</th>
         </tr>
@@ -167,32 +125,11 @@
 </div>
 
 <div class="card mt-4">
-  <div class="card-header">Record Book Marks Entry (out of 10)</div>
+  <div class="card-header">Record Book Marks Entry (Bulk)</div>
   <div class="card-body">
-    <form method="post" action="{{ url_for('save_record_book_mark') }}" class="row g-2">
-      <div class="col-md-4">
-        <select class="form-select" name="quiz_id" required>
-          <option value="">Select conducted quiz</option>
-          {% for q in record_quiz_options %}
-          <option value="{{ q.quiz_id }}">{{ q.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-4">
-        <select class="form-select" name="student_id" required>
-          <option value="">Select student</option>
-          {% for s in marks_matrix %}
-          <option value="{{ s.student_id }}">{{ s.username }}{% if s.batch %} ({{ s.batch }}){% endif %}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <input class="form-control" type="number" step="0.01" min="0" max="10" name="marks_out_of_10" placeholder="0-10" required>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-outline-primary w-100" type="submit">Save</button>
-      </div>
-    </form>
+    <a class="btn btn-outline-primary" href="{{ url_for('record_book_entry') }}" target="_blank" rel="noopener">
+      Open Bulk Record Marks Entry Window
+    </a>
   </div>
 </div>
 
@@ -229,6 +166,30 @@
     </table>
   </div>
 </div>
+<div class="card mt-4">
+  <div class="card-header">Semester Cleanup (Download final sheet then delete)</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('Are you sure? A copy of the final sheet will be downloaded before delete.');">
+      <div class="row g-2">
+        <div class="col-md-8">
+          <select class="form-select" name="assignment_cleanup" required onchange="syncCleanup(this.value)">
+            <option value="">Select Sem/Section/Subject</option>
+            {% for a in assignments %}
+            <option value="{{ a.sem }}|{{ a.section }}|{{ a.subject_code }}">Sem {{ a.sem }} - {{ a.section }} - {{ a.subject_code }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="sem" id="cleanup-sem">
+          <input type="hidden" name="section" id="cleanup-section">
+          <input type="hidden" name="subject_code" id="cleanup-subject">
+        </div>
+        <div class="col-md-4">
+          <button class="btn btn-danger w-100" type="submit">Download + Delete Data</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   (function () {
     async function updateWaitingCounts() {

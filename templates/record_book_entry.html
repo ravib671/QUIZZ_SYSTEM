@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Record Book Bulk Entry</h3>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin_dashboard') }}">Back</a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2">
+      <div class="col-md-10">
+        <select class="form-select" name="quiz_id" required>
+          <option value="">Select conducted quiz</option>
+          {% for q in quizzes %}
+          <option value="{{ q.id }}" {% if selected_quiz_id and selected_quiz_id == q.id %}selected{% endif %}>
+            {{ q.quiz_date }} - S{{ q.sem }}{{ q.section }}{% if q.batch %} ({{ q.batch }}){% endif %} - {{ q.subject_code }} - {{ q.title }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">Load</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Student Record Marks (out of 10)</div>
+  <div class="card-body p-0">
+    <form method="post" action="{{ url_for('save_record_book_bulk') }}">
+      <input type="hidden" name="quiz_id" value="{{ selected_quiz_id if selected_quiz_id else '' }}">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>USN</th>
+            <th>Name</th>
+            <th>Batch</th>
+            <th>Record Mark</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+          <tr>
+            <td>{{ s.username }}</td>
+            <td>{{ s.full_name if s.full_name else '-' }}</td>
+            <td>{{ s.batch if s.batch else '-' }}</td>
+            <td style="max-width: 160px;">
+              <input class="form-control" type="number" min="0" max="10" step="0.01" name="marks_{{ s.student_id }}" value="{{ s.marks_out_of_10 if s.marks_out_of_10 is not none else '' }}" placeholder="0-10">
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center p-3">Select a quiz to load students.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="p-3 border-top text-end">
+        <button class="btn btn-success" type="submit" {% if not students %}disabled{% endif %}>Save All</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

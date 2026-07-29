@@ -204,6 +204,18 @@ def super_admin_dashboard():
             if not is_password_strong(password):
                 flash("Password must be strong.", "danger")
                 return redirect(url_for("super_admin_dashboard"))
+            existing_admin = fetch_one(
+                """
+                SELECT id
+                FROM users
+                WHERE username=%s OR faculty_code=%s
+                LIMIT 1
+                """,
+                (username, faculty_code),
+            )
+            if existing_admin:
+                flash("Admin already exists with same username or faculty code.", "warning")
+                return redirect(url_for("super_admin_dashboard"))
             execute_query(
                 """
                 INSERT INTO users (username, faculty_code, full_name, email, password, role)
@@ -774,6 +786,7 @@ def admin_dashboard():
             {
                 "quiz_id": q_id,
                 "label": f"{q['quiz_date']} - {q.get('batch') or '-'} - {q['title']}",
+                "quiz_date": q["quiz_date"],
                 "batch": q.get("batch"),
             }
         )
@@ -947,6 +960,105 @@ def save_record_book_mark():
     return redirect(url_for("admin_dashboard"))
 
 
+@app.route("/admin/record-book/entry")
+@login_required(role="admin")
+def record_book_entry():
+    admin_id = session["user_id"]
+    quizzes = fetch_all(
+        """
+        SELECT id, title, quiz_date, sem, section, batch, subject_code
+        FROM quizzes
+        WHERE admin_id=%s AND quiz_date <= CURDATE()
+        ORDER BY quiz_date DESC, id DESC
+        """,
+        (admin_id,),
+    )
+    quiz_id = request.args.get("quiz_id", "").strip()
+    selected_quiz_id = int(quiz_id) if quiz_id.isdigit() else None
+
+    students = []
+    if selected_quiz_id:
+        quiz = fetch_one(
+            "SELECT id, admin_id, sem, section, batch, title, quiz_date FROM quizzes WHERE id=%s",
+            (selected_quiz_id,),
+        )
+        if quiz and int(quiz["admin_id"]) == int(admin_id):
+            students = fetch_all(
+                """
+                SELECT u.id AS student_id, u.username, u.full_name, u.batch,
+                       rb.marks_out_of_10
+                FROM users u
+                LEFT JOIN record_book_marks rb ON rb.student_id=u.id AND rb.quiz_id=%s
+                WHERE LOWER(u.role)='student'
+                  AND u.sem=%s
+                  AND u.section=%s
+                  AND (%s IS NULL OR u.batch=%s)
+                ORDER BY u.username ASC
+                """,
+                (selected_quiz_id, quiz["sem"], quiz["section"], quiz.get("batch"), quiz.get("batch")),
+            )
+    return render_template(
+        "record_book_entry.html",
+        quizzes=quizzes,
+        selected_quiz_id=selected_quiz_id,
+        students=students,
+    )
+
+
+@app.route("/admin/record-book/save-bulk", methods=["POST"])
+@login_required(role="admin")
+def save_record_book_bulk():
+    admin_id = session["user_id"]
+    quiz_id = request.form.get("quiz_id", "").strip()
+    if not quiz_id.isdigit():
+        flash("Please select a valid quiz.", "danger")
+        return redirect(url_for("record_book_entry"))
+    quiz_id_int = int(quiz_id)
+    quiz = fetch_one(
+        "SELECT id, admin_id, sem, section, batch FROM quizzes WHERE id=%s",
+        (quiz_id_int,),
+    )
+    if not quiz or int(quiz["admin_id"]) != int(admin_id):
+        flash("Unauthorized quiz access.", "danger")
+        return redirect(url_for("record_book_entry"))
+
+    students = fetch_all(
+        """
+        SELECT id
+        FROM users
+        WHERE LOWER(role)='student' AND sem=%s AND section=%s AND (%s IS NULL OR batch=%s)
+        """,
+        (quiz["sem"], quiz["section"], quiz.get("batch"), quiz.get("batch")),
+    )
+    rows = []
+    for s in students:
+        raw = request.form.get(f"marks_{s['id']}", "").strip()
+        if raw == "":
+            continue
+        try:
+            v = float(raw)
+        except ValueError:
+            flash("All entered marks must be numeric (0-10).", "danger")
+            return redirect(url_for("record_book_entry", quiz_id=quiz_id_int))
+        if v < 0 or v > 10:
+            flash("Marks must be between 0 and 10.", "danger")
+            return redirect(url_for("record_book_entry", quiz_id=quiz_id_int))
+        rows.append((quiz_id_int, int(s["id"]), v))
+
+    if rows:
+        execute_query(
+            """
+            INSERT INTO record_book_marks (quiz_id, student_id, marks_out_of_10)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE marks_out_of_10=VALUES(marks_out_of_10), updated_at=CURRENT_TIMESTAMP
+            """,
+            rows,
+            many=True,
+        )
+    flash("Record book marks saved successfully.", "success")
+    return redirect(url_for("record_book_entry", quiz_id=quiz_id_int))
+
+
 @app.route("/admin/waiting-counts")
 @login_required(role="admin")
 def admin_waiting_counts():
@@ -1090,6 +1202,98 @@ def export_admin_marks():
         output,
         as_attachment=True,
         download_name="student_marks_report.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/admin/record-book/export")
+@login_required(role="admin")
+def export_record_book_marks():
+    admin_id = session["user_id"]
+    quizzes = fetch_all(
+        """
+        SELECT q.id, q.quiz_date, q.title, q.sem, q.section, q.batch, q.subject_code
+        FROM quizzes q
+        WHERE q.admin_id=%s
+        ORDER BY q.quiz_date ASC, q.id ASC
+        """,
+        (admin_id,),
+    )
+    quiz_columns = [
+        {
+            "quiz_id": str(q["id"]),
+            "quiz_date": str(q["quiz_date"]),
+            "batch": q.get("batch"),
+            "label": f"{q['quiz_date']} - S{q['sem']}{q['section']} - {q.get('batch') or '-'} - {q['subject_code']} - {q['title']}",
+        }
+        for q in quizzes
+    ]
+    conducted_quiz_ids = {column["quiz_id"] for column in quiz_columns if column["quiz_date"] <= str(date.today())}
+
+    record_rows = fetch_all(
+        """
+        SELECT
+            u.id AS student_id,
+            u.username,
+            u.full_name,
+            u.batch AS student_batch,
+            q.id AS quiz_id,
+            rb.marks_out_of_10
+        FROM record_book_marks rb
+        JOIN users u ON u.id=rb.student_id
+        JOIN quizzes q ON q.id=rb.quiz_id
+        WHERE q.admin_id=%s
+        ORDER BY u.username ASC, q.quiz_date ASC, q.id ASC
+        """,
+        (admin_id,),
+    )
+
+    student_map = {}
+    record_lookup = {}
+    for row in record_rows:
+        student_map[row["student_id"]] = {
+            "student_id": row["student_id"],
+            "username": row["username"],
+            "full_name": row.get("full_name"),
+            "batch": row.get("student_batch"),
+        }
+        record_lookup[(str(row["student_id"]), str(row["quiz_id"]))] = float(row["marks_out_of_10"])
+    students = sorted(student_map.values(), key=lambda s: (s["username"] or "").upper())
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Record Book Marks"
+
+    headers = ["Student", "Name", "Batch"] + [f"{c['label']} (Record /10)" for c in quiz_columns] + ["Running Record Avg (out of 10)"]
+    sheet.append(headers)
+
+    for student in students:
+        row_values = [student["username"], student.get("full_name") or "", student.get("batch") or ""]
+        total_record = 0.0
+        eligible_record_count = 0
+        for column in quiz_columns:
+            quiz_id = column["quiz_id"]
+            is_eligible = (column.get("batch") is None) or (column.get("batch") == student.get("batch"))
+            if quiz_id in conducted_quiz_ids and is_eligible:
+                eligible_record_count += 1
+                mark = record_lookup.get((str(student["student_id"]), quiz_id))
+                row_values.append(mark if mark is not None else "-")
+                if mark is not None:
+                    total_record += float(mark)
+            else:
+                row_values.append("-")
+        avg_record = round(total_record / eligible_record_count, 2) if eligible_record_count > 0 else None
+        row_values.append(avg_record if avg_record is not None else "N/A")
+        sheet.append(row_values)
+
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="record_book_marks_report.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 

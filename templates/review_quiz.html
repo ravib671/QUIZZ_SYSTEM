@@ -30,8 +30,26 @@
       {% for row in answers %}
         <tr>
           <td>{{ row.question }}</td>
-          <td>{{ row.selected_option if row.selected_option else 'Not answered' }}</td>
-          <td>{{ row.correct_option }}</td>
+          <td>
+            {% if row.selected_option %}
+              {{ row.selected_option }} -
+              {% if row.selected_option == 'A' %}{{ row.option_a }}
+              {% elif row.selected_option == 'B' %}{{ row.option_b }}
+              {% elif row.selected_option == 'C' %}{{ row.option_c }}
+              {% elif row.selected_option == 'D' %}{{ row.option_d }}
+              {% endif %}
+            {% else %}
+              Not answered
+            {% endif %}
+          </td>
+          <td>
+            {{ row.correct_option }} -
+            {% if row.correct_option == 'A' %}{{ row.option_a }}
+            {% elif row.correct_option == 'B' %}{{ row.option_b }}
+            {% elif row.correct_option == 'C' %}{{ row.option_c }}
+            {% elif row.correct_option == 'D' %}{{ row.option_d }}
+            {% endif %}
+          </td>
           <td>
             {% if row.is_correct == 1 %}
               <span class="badge text-bg-success">Correct</span>

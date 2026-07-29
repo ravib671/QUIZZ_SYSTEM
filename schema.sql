@@ -51,8 +51,6 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-<<<<<<< HEAD
-=======
 CREATE TABLE IF NOT EXISTS quiz_attempt_answers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     attempt_id INT NOT NULL,
@@ -65,7 +63,7 @@ CREATE TABLE IF NOT EXISTS quiz_attempt_answers (
     FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE
 );
 
->>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
+
 CREATE TABLE IF NOT EXISTS quiz_waiting (
     id INT AUTO_INCREMENT PRIMARY KEY,
     quiz_id INT NOT NULL,
@@ -76,8 +74,7 @@ CREATE TABLE IF NOT EXISTS quiz_waiting (
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-<<<<<<< HEAD
-=======
+
 CREATE TABLE IF NOT EXISTS record_book_marks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     quiz_id INT NOT NULL,
@@ -90,7 +87,7 @@ CREATE TABLE IF NOT EXISTS record_book_marks (
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
->>>>>>> 7db182e7247ad270679c528418a8495a7b8e3fba
+
 CREATE TABLE IF NOT EXISTS admin_subject_assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     admin_id INT NOT NULL,

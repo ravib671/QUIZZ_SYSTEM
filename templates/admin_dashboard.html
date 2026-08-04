@@ -47,6 +47,7 @@
           <th>Batch</th>
           <th>Subject</th>
           <th>Timer (min)</th>
+          <th>Per Q (sec)</th>
           <th>Waiting Count</th>
           <th>Status</th>
           <th>Questions</th>
@@ -63,6 +64,7 @@
           <td>{{ q.batch if q.batch else '-' }}</td>
           <td>{{ q.subject_code }}</td>
           <td>{{ q.duration_minutes }}</td>
+          <td>{{ q.question_duration_seconds }}</td>
           <td id="waiting-count-{{ q.id }}">{{ q.waiting_count }}</td>
           <td>
             {% if q.quiz_status == 'COMPLETED' %}
@@ -83,7 +85,7 @@
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="11" class="text-center p-3">No quizzes uploaded yet.</td></tr>
+        <tr><td colspan="12" class="text-center p-3">No quizzes uploaded yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -100,7 +102,7 @@
           <th>Name</th>
           <th>Batch</th>
           {% for col in quiz_columns %}
-            <th>{{ col.quiz_date }} </th>
+            <th>{{ col.quiz_date }} (Marks)</th>
           {% endfor %}
           <th>Running Avg (out of 10)</th>
         </tr>
@@ -143,7 +145,7 @@
           <th>Name</th>
           <th>Batch</th>
           {% for col in quiz_columns %}
-            <th>{{ col.quiz_date }}</th>
+            <th>{{ col.label }} (Record)</th>
           {% endfor %}
           <th>Running Record Avg (out of 10)</th>
         </tr>

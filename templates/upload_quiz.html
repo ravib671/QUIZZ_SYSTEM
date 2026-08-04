@@ -34,7 +34,6 @@
             </select>
             <div class="form-text">For section A: A1/A2/A3, section B: B1/B2/B3, etc.</div>
           </div>
-
           <div class="mb-3 form-check">
             <input class="form-check-input" type="checkbox" name="enabled" id="enabled" checked>
             <label class="form-check-label" for="enabled">Enable immediately for students</label>
@@ -42,6 +41,12 @@
           <div class="mb-3">
             <label class="form-label">Quiz Timer (minutes)</label>
             <input class="form-control" type="number" name="duration_minutes" min="1" max="180" value="10" required>
+            <div class="form-text">Overall fallback timer for the full quiz.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Per Question Timer (seconds)</label>
+            <input class="form-control" type="number" name="question_duration_seconds" min="5" max="300" value="10" required>
+            <div class="form-text">Each question is shown one at a time and auto-skips when this timer reaches zero.</div>
           </div>
           <div class="mb-3">
             <label class="form-label">CSV File (6 columns)</label>

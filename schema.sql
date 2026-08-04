@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS quizzes (
     subject_code VARCHAR(10) NOT NULL,
     enabled TINYINT(1) DEFAULT 0,
     duration_minutes INT NOT NULL DEFAULT 10,
+    question_duration_seconds INT NOT NULL DEFAULT 10,
     started_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -63,7 +64,6 @@ CREATE TABLE IF NOT EXISTS quiz_attempt_answers (
     FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE
 );
 
-
 CREATE TABLE IF NOT EXISTS quiz_waiting (
     id INT AUTO_INCREMENT PRIMARY KEY,
     quiz_id INT NOT NULL,
@@ -73,7 +73,6 @@ CREATE TABLE IF NOT EXISTS quiz_waiting (
     FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
 
 CREATE TABLE IF NOT EXISTS record_book_marks (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,7 +85,6 @@ CREATE TABLE IF NOT EXISTS record_book_marks (
     FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
 
 CREATE TABLE IF NOT EXISTS admin_subject_assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,

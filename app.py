@@ -516,7 +516,7 @@ def attempt_quiz(quiz_id):
 
     student = fetch_one("SELECT sem, section, batch FROM users WHERE id=%s", (user_id,))
     quiz = fetch_one(
-        "SELECT id, title, enabled, quiz_date, duration_minutes, started_at, sem, section, batch FROM quizzes WHERE id=%s",
+        "SELECT id, title, enabled, quiz_date, duration_minutes, question_duration_seconds, started_at, sem, section, batch FROM quizzes WHERE id=%s",
         (quiz_id,),
     )
     if not quiz or quiz["enabled"] != 1 or str(quiz["quiz_date"]) != str(date.today()):
@@ -633,6 +633,7 @@ def attempt_quiz(quiz_id):
         quiz=quiz,
         questions=selected_questions,
         duration_seconds=int(quiz.get("duration_minutes") or 10) * 60,
+        question_duration_seconds=int(quiz.get("question_duration_seconds") or 10),
         start_time=started_at_epoch,
         server_now=int(time.time()),
     )
@@ -728,7 +729,7 @@ def admin_dashboard():
 
     quizzes = fetch_all(
         f"""
-        SELECT q.id, q.title, q.quiz_date, q.sem, q.section, q.batch, q.subject_code, q.enabled, q.duration_minutes, q.started_at,
+        SELECT q.id, q.title, q.quiz_date, q.sem, q.section, q.batch, q.subject_code, q.enabled, q.duration_minutes, q.question_duration_seconds, q.started_at,
                (SELECT COUNT(*) FROM quiz_waiting qw WHERE qw.quiz_id=q.id) AS waiting_count,
                (SELECT COUNT(*) FROM quiz_attempts qa WHERE qa.quiz_id=q.id) AS attempt_count,
                CASE
@@ -1315,11 +1316,16 @@ def upload_quiz():
             if len(parts) == 3:
                 sem, section, subject_code = parts[0], parts[1].upper(), parts[2].upper()
         enabled = 1 if request.form.get("enabled") == "on" else 0
-        duration_minutes = int(request.form.get("duration_minutes", "10"))
+        try:
+            duration_minutes = int(request.form.get("duration_minutes", "10"))
+            question_duration_seconds = int(request.form.get("question_duration_seconds", "10"))
+        except ValueError:
+            flash("Quiz timer and question timer must be valid numbers.", "danger")
+            return redirect(url_for("upload_quiz"))
         file = request.files.get("quiz_csv")
 
-        if not title or not quiz_date or not sem or not section or not batch or not subject_code or not file or duration_minutes <= 0:
-            flash("Title, sem, section, batch, subject, date, duration and CSV file are required.", "danger")
+        if not title or not quiz_date or not sem or not section or not batch or not subject_code or not file or duration_minutes <= 0 or question_duration_seconds <= 0:
+            flash("Title, sem, section, batch, subject, date, quiz timer, question timer and CSV file are required.", "danger")
             return redirect(url_for("upload_quiz"))
         if not sem.isdigit() or int(sem) < 1 or int(sem) > 8:
             flash("Semester must be between 1 and 8.", "danger")
@@ -1343,10 +1349,10 @@ def upload_quiz():
 
         quiz_id = execute_query(
             """
-            INSERT INTO quizzes (admin_id, title, quiz_date, sem, section, batch, subject_code, enabled, duration_minutes)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO quizzes (admin_id, title, quiz_date, sem, section, batch, subject_code, enabled, duration_minutes, question_duration_seconds)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (admin_id, title, quiz_date, int(sem), section, batch, subject_code, enabled, duration_minutes),
+            (admin_id, title, quiz_date, int(sem), section, batch, subject_code, enabled, duration_minutes, question_duration_seconds),
         )
 
         try:

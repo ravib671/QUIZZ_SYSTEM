@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3 class="mb-3">Super Admin Dashboard</h3>
+
+<div class="card mb-4">
+  <div class="card-header">Faculty Admins</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+      <tr>
+        <th>Name</th>
+        <th>Faculty Code</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Action</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for a in admins %}
+      <tr>
+        <td>{{ a.full_name }}</td>
+        <td>{{ a.faculty_code if a.faculty_code else '-' }}</td>
+        <td>{{ a.username }}</td>
+        <td>{{ a.email if a.email else '-' }}</td>
+        <td>
+          <form method="post" onsubmit="return confirm('Delete this admin and all their quizzes/assignments?');">
+            <input type="hidden" name="action" value="delete_admin">
+            <input type="hidden" name="admin_id" value="{{ a.id }}">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center p-3">No faculty admins found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Create Faculty Admin</div>
+  <div class="card-body">
+    <form method="post">
+      <input type="hidden" name="action" value="create_admin">
+      <div class="row g-2">
+        <div class="col-md-2"><input class="form-control" name="faculty_code" placeholder="Faculty Code" required></div>
+        <div class="col-md-3"><input class="form-control" name="full_name" placeholder="Name" required></div>
+        <div class="col-md-3"><input class="form-control" name="email" placeholder="Email"></div>
+        <div class="col-md-2"><input class="form-control" name="username" placeholder="Username" required></div>
+        <div class="col-md-2"><input class="form-control" name="password" type="password" placeholder="Password" required></div>
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Create Admin</button>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Assign Subject to Faculty</div>
+  <div class="card-body">
+    <form method="post">
+      <input type="hidden" name="action" value="assign_subject">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <select class="form-select" name="admin_id" required>
+            <option value="">Select Faculty</option>
+            {% for a in admins %}
+            <option value="{{ a.id }}">{{ a.full_name }} ({{ a.faculty_code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2"><input class="form-control" name="sem" type="number" min="1" max="8" placeholder="Sem" required></div>
+        <div class="col-md-2">
+          <select class="form-select" name="section" required>
+            <option value="">Section</option>
+            {% for ch in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+            <option value="{{ ch }}">{{ ch }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2"><input class="form-control" name="subject_code" maxlength="4" placeholder="IWP" required></div>
+      </div>
+      <button class="btn btn-success mt-3" type="submit">Assign</button>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Reset User Password (Simple Recovery)</div>
+  <div class="card-body">
+    <form method="post">
+      <input type="hidden" name="action" value="reset_user_password">
+      <div class="row g-2">
+        <div class="col-md-4"><input class="form-control" name="username" placeholder="Username (USN/admin username)" required></div>
+        <div class="col-md-4"><input class="form-control" name="new_password" type="password" placeholder="New Temporary Password" required></div>
+        <div class="col-md-4"><button class="btn btn-warning w-100" type="submit">Reset Password</button></div>
+      </div>
+      <div class="form-text mt-2">Ask user to login and immediately change password.</div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Current Assignments</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead><tr><th>Faculty</th><th>Sem</th><th>Section</th><th>Subject</th></tr></thead>
+      <tbody>
+      {% for x in assignments %}
+      <tr><td>{{ x.admin_name }}</td><td>{{ x.sem }}</td><td>{{ x.section }}</td><td>{{ x.subject_code }}</td></tr>
+      {% else %}
+      <tr><td colspan="4" class="text-center p-3">No assignments yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

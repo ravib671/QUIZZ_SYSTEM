@@ -903,6 +903,36 @@ def start_quiz(quiz_id):
     return redirect(url_for("admin_dashboard"))
 
 
+@app.route("/admin/quiz/<int:quiz_id>/mcqs")
+@login_required(role="admin")
+def view_quiz_mcqs(quiz_id):
+    quiz = fetch_one(
+        """
+        SELECT id, title, quiz_date, sem, section, batch, subject_code, admin_id
+        FROM quizzes
+        WHERE id=%s
+        """,
+        (quiz_id,),
+    )
+    if not quiz:
+        flash("Quiz not found.", "warning")
+        return redirect(url_for("admin_dashboard"))
+    if int(quiz["admin_id"]) != int(session["user_id"]):
+        flash("Unauthorized quiz access.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    questions = fetch_all(
+        """
+        SELECT id, question, option_a, option_b, option_c, option_d, correct_option
+        FROM quiz_questions
+        WHERE quiz_id=%s
+        ORDER BY id ASC
+        """,
+        (quiz_id,),
+    )
+    return render_template("admin_quiz_mcqs.html", quiz=quiz, questions=questions)
+
+
 @app.route("/admin/record-book/save", methods=["POST"])
 @login_required(role="admin")
 def save_record_book_mark():

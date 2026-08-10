@@ -52,6 +52,7 @@
           <th>Status</th>
           <th>Questions</th>
           <th>Start</th>
+          <th>MCQs</th>
         </tr>
       </thead>
       <tbody>
@@ -83,9 +84,12 @@
               <button class="btn btn-sm btn-success" type="submit" {% if q.started_at %}disabled{% endif %}>Start Quiz</button>
             </form>
           </td>
+          <td>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('view_quiz_mcqs', quiz_id=q.id) }}">View MCQs</a>
+          </td>
         </tr>
       {% else %}
-        <tr><td colspan="12" class="text-center p-3">No quizzes uploaded yet.</td></tr>
+        <tr><td colspan="13" class="text-center p-3">No quizzes uploaded yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>

@@ -1494,6 +1494,77 @@ def toggle_quiz(quiz_id):
     return redirect(url_for("admin_dashboard"))
 
 
+@app.route("/admin/quiz/<int:quiz_id>/edit", methods=["GET", "POST"])
+@login_required(role="admin")
+def edit_quiz(quiz_id):
+    quiz = fetch_one(
+        """
+        SELECT id, admin_id, title, quiz_date, duration_minutes, question_duration_seconds, enabled
+        FROM quizzes
+        WHERE id=%s
+        """,
+        (quiz_id,),
+    )
+    if not quiz:
+        flash("Quiz not found.", "warning")
+        return redirect(url_for("admin_dashboard"))
+    if int(quiz["admin_id"]) != int(session["user_id"]):
+        flash("Unauthorized quiz access.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        quiz_date = request.form.get("quiz_date", "").strip()
+        try:
+            duration_minutes = int(request.form.get("duration_minutes", "10"))
+            question_duration_seconds = int(request.form.get("question_duration_seconds", "10"))
+        except ValueError:
+            flash("Quiz timer and question timer must be valid numbers.", "danger")
+            return redirect(url_for("edit_quiz", quiz_id=quiz_id))
+        enabled = 1 if request.form.get("enabled") == "on" else 0
+
+        if not title or not quiz_date or duration_minutes <= 0 or question_duration_seconds <= 0:
+            flash("Title, date, quiz timer and question timer are required.", "danger")
+            return redirect(url_for("edit_quiz", quiz_id=quiz_id))
+
+        execute_query(
+            """
+            UPDATE quizzes
+            SET title=%s, quiz_date=%s, duration_minutes=%s, question_duration_seconds=%s, enabled=%s
+            WHERE id=%s AND admin_id=%s
+            """,
+            (
+                title,
+                quiz_date,
+                duration_minutes,
+                question_duration_seconds,
+                enabled,
+                quiz_id,
+                session["user_id"],
+            ),
+        )
+        flash("Quiz updated successfully.", "success")
+        return redirect(url_for("admin_dashboard"))
+
+    return render_template("edit_quiz.html", quiz=quiz)
+
+
+@app.route("/admin/quiz/<int:quiz_id>/delete", methods=["POST"])
+@login_required(role="admin")
+def delete_quiz(quiz_id):
+    quiz = fetch_one("SELECT id, admin_id FROM quizzes WHERE id=%s", (quiz_id,))
+    if not quiz:
+        flash("Quiz not found.", "warning")
+        return redirect(url_for("admin_dashboard"))
+    if int(quiz["admin_id"]) != int(session["user_id"]):
+        flash("Unauthorized quiz access.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    execute_query("DELETE FROM quizzes WHERE id=%s AND admin_id=%s", (quiz_id, session["user_id"]))
+    flash("Quiz deleted successfully.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
 @app.route("/admin/cleanup", methods=["POST"])
 @login_required(role="admin")
 def admin_cleanup():

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h4 class="mb-3">Edit Student Profile</h4>
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label">USN (Username)</label>
+            <input type="text" class="form-control" value="{{ student.username }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" name="full_name" class="form-control" value="{{ student.full_name }}" required>
+          </div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Semester</label>
+              <input type="number" name="sem" class="form-control" min="1" max="8" value="{{ student.sem }}" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Section</label>
+              <select name="section" id="section" class="form-select" required onchange="syncBatchOptions()">
+                <option value="">Select</option>
+                {% for ch in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                <option value="{{ ch }}" {% if student.section == ch %}selected{% endif %}>{{ ch }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Subsection (Batch)</label>
+              <select name="batch" id="batch" class="form-select" required>
+                <option value="">Select section first</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('student_dashboard') }}">Back</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function syncBatchOptions() {
+  const section = document.getElementById("section").value;
+  const batch = document.getElementById("batch");
+  const currentBatch = "{{ student.batch or '' }}";
+  batch.innerHTML = "";
+  if (!section) {
+    batch.innerHTML = '<option value="">Select section first</option>';
+    return;
+  }
+  batch.innerHTML = '<option value="">Select</option>';
+  [1, 2, 3].forEach((idx) => {
+    const code = `${section}${idx}`;
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = code;
+    if (currentBatch === code) {
+      opt.selected = true;
+    }
+    batch.appendChild(opt);
+  });
+}
+syncBatchOptions();
+</script>
+{% endblock %}

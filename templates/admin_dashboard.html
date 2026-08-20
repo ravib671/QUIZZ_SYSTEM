@@ -161,7 +161,7 @@
           <th>Name</th>
           <th>Batch</th>
           {% for col in quiz_columns %}
-            <th>{{ col.label }} (Record)</th>
+            <th>{{ col.quiz_date }} (Record)</th>
           {% endfor %}
           <th>Running Record Avg (out of 10)</th>
         </tr>
@@ -189,7 +189,7 @@
   <div class="card-body">
     <form method="post" action="{{ url_for('admin_cleanup') }}" onsubmit="return confirm('Are you sure? A copy of the final sheet will be downloaded before delete.');">
       <div class="row g-2">
-        <div class="col-md-8">
+        <div class="col-md-5">
           <select class="form-select" name="assignment_cleanup" required onchange="syncCleanup(this.value)">
             <option value="">Select Sem/Section/Subject</option>
             {% for a in assignments %}
@@ -199,6 +199,9 @@
           <input type="hidden" name="sem" id="cleanup-sem">
           <input type="hidden" name="section" id="cleanup-section">
           <input type="hidden" name="subject_code" id="cleanup-subject">
+        </div>
+        <div class="col-md-3">
+          <input class="form-control" type="password" name="admin_password" placeholder="Confirm your password" autocomplete="current-password" required>
         </div>
         <div class="col-md-4">
           <button class="btn btn-danger w-100" type="submit">Download + Delete Data</button>

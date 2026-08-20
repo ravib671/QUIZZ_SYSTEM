@@ -1699,6 +1699,22 @@ def admin_cleanup():
     sem = request.form.get("sem", "").strip()
     section = request.form.get("section", "").strip().upper()
     subject_code = request.form.get("subject_code", "").strip().upper()
+    admin_password = request.form.get("admin_password", "")
+    if not sem.isdigit() or not 1 <= int(sem) <= 8 or not re.fullmatch(r"[A-Z]", section):
+        flash("Select a valid semester and section.", "danger")
+        return redirect(url_for("admin_dashboard"))
+    if not re.fullmatch(r"[A-Z]{3,4}", subject_code):
+        flash("Select a valid subject.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    admin = fetch_one(
+        "SELECT id, password FROM users WHERE id=%s AND role='admin'",
+        (admin_id,),
+    )
+    if not admin or not admin_password or not verify_password(admin["password"], admin_password):
+        flash("Incorrect admin password. Semester data was not deleted.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
     quizzes = fetch_all(
         """
         SELECT q.id, q.quiz_date, q.title

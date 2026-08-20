@@ -412,7 +412,19 @@ def student_dashboard():
                 WHERE eligible.role='student' AND eligible.sem=q.sem AND eligible.section=q.section
                   AND (q.batch IS NULL OR eligible.batch=q.batch)) AS eligible_count,
                (SELECT COUNT(*) FROM quiz_attempts completed
-                WHERE completed.quiz_id=q.id) AS attempt_count
+                WHERE completed.quiz_id=q.id) AS attempt_count,
+               TIMESTAMPADD(
+                   SECOND,
+                   LEAST(q.duration_minutes * 60, q.question_duration_seconds * 5),
+                   q.started_at
+               ) AS review_unlock_at,
+               CASE
+                   WHEN q.started_at IS NOT NULL AND NOW() >= TIMESTAMPADD(
+                       SECOND,
+                       LEAST(q.duration_minutes * 60, q.question_duration_seconds * 5),
+                       q.started_at
+                   ) THEN 1 ELSE 0
+               END AS time_unlock_ready
         FROM quiz_attempts qa
         JOIN quizzes q ON q.id=qa.quiz_id
         WHERE qa.student_id=%s
@@ -422,8 +434,11 @@ def student_dashboard():
     )
     for item in history:
         item["review_available"] = (
-            int(item.get("eligible_count") or 0) > 0
-            and int(item.get("attempt_count") or 0) >= int(item.get("eligible_count") or 0)
+            (
+                int(item.get("eligible_count") or 0) > 0
+                and int(item.get("attempt_count") or 0) >= int(item.get("eligible_count") or 0)
+            )
+            or bool(item.get("time_unlock_ready"))
         )
 
     record_history = fetch_all(
@@ -740,7 +755,14 @@ def review_quiz_attempt(quiz_id):
                (SELECT COUNT(*) FROM users eligible
                 WHERE eligible.role='student' AND eligible.sem=q.sem AND eligible.section=q.section
                   AND (q.batch IS NULL OR eligible.batch=q.batch)) AS eligible_count,
-               (SELECT COUNT(*) FROM quiz_attempts qa2 WHERE qa2.quiz_id=q.id) AS attempt_count
+               (SELECT COUNT(*) FROM quiz_attempts qa2 WHERE qa2.quiz_id=q.id) AS attempt_count,
+               CASE
+                   WHEN q.started_at IS NOT NULL AND NOW() >= TIMESTAMPADD(
+                       SECOND,
+                       LEAST(q.duration_minutes * 60, q.question_duration_seconds * 5),
+                       q.started_at
+                   ) THEN 1 ELSE 0
+               END AS time_unlock_ready
         FROM quizzes q
         WHERE q.id=%s
         """,
@@ -766,10 +788,14 @@ def review_quiz_attempt(quiz_id):
         return redirect(url_for("student_dashboard"))
 
     is_completed = bool(
-        quiz["eligible_count"] > 0 and quiz["attempt_count"] >= quiz["eligible_count"]
+        (quiz["eligible_count"] > 0 and quiz["attempt_count"] >= quiz["eligible_count"])
+        or quiz["time_unlock_ready"]
     )
     if not is_completed:
-        flash("Answer review will be available after all students submit.", "info")
+        flash(
+            "Answer review will be available after all students submit or the quiz answer period ends.",
+            "info",
+        )
         return redirect(url_for("student_dashboard"))
 
     answers = fetch_all(

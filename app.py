@@ -285,25 +285,61 @@ def super_admin_dashboard():
 @login_required(role="super_admin")
 def bulk_reset_student_passwords():
     selected_batch = request.values.get("batch", "").strip().upper()
+    selected_subject = request.values.get("subject_code", "").strip().upper()
+    selected_sem = request.values.get("sem", "").strip()
+    assignment_rows = fetch_all(
+        "SELECT DISTINCT sem, section, subject_code FROM admin_subject_assignments "
+        "ORDER BY sem, section, subject_code"
+    )
+    subsection_options = [
+        {
+            "sem": assignment["sem"],
+            "subject_code": assignment["subject_code"],
+            "batch": f"{assignment['section']}{subsection_number}",
+        }
+        for assignment in assignment_rows
+        for subsection_number in range(1, 4)
+    ]
+    selected_option_is_valid = any(
+        str(option["sem"]) == selected_sem
+        and option["subject_code"] == selected_subject
+        and option["batch"] == selected_batch
+        for option in subsection_options
+    )
 
     if request.method == "POST":
         student_ids = request.form.getlist("student_ids")
-        if not selected_batch or not re.fullmatch(r"[A-Z][1-3]", selected_batch):
-            flash("Select a valid subsection.", "danger")
+        if not selected_option_is_valid:
+            flash("Select a valid subject and subsection.", "danger")
             return redirect(url_for("bulk_reset_student_passwords"))
         if not student_ids or any(not student_id.isdigit() for student_id in student_ids):
             flash("Select at least one student.", "warning")
-            return redirect(url_for("bulk_reset_student_passwords", batch=selected_batch))
+            return redirect(
+                url_for(
+                    "bulk_reset_student_passwords",
+                    sem=selected_sem,
+                    subject_code=selected_subject,
+                    batch=selected_batch,
+                )
+            )
 
         placeholders = ", ".join(["%s"] * len(student_ids))
         eligible_students = fetch_all(
-            f"SELECT id FROM users WHERE role='student' AND batch=%s AND id IN ({placeholders})",
-            (selected_batch, *[int(student_id) for student_id in student_ids]),
+            f"SELECT id FROM users WHERE role='student' AND sem=%s AND batch=%s "
+            f"AND id IN ({placeholders})",
+            (int(selected_sem), selected_batch, *[int(student_id) for student_id in student_ids]),
         )
         eligible_ids = [student["id"] for student in eligible_students]
         if not eligible_ids:
             flash("No valid students were selected for this subsection.", "warning")
-            return redirect(url_for("bulk_reset_student_passwords", batch=selected_batch))
+            return redirect(
+                url_for(
+                    "bulk_reset_student_passwords",
+                    sem=selected_sem,
+                    subject_code=selected_subject,
+                    batch=selected_batch,
+                )
+            )
 
         password_hash = generate_password_hash(BULK_RESET_PASSWORD)
         execute_query(
@@ -315,22 +351,29 @@ def bulk_reset_student_passwords():
             f"Password reset to {BULK_RESET_PASSWORD} for {len(eligible_ids)} student(s).",
             "success",
         )
-        return redirect(url_for("bulk_reset_student_passwords", batch=selected_batch))
+        return redirect(
+            url_for(
+                "bulk_reset_student_passwords",
+                sem=selected_sem,
+                subject_code=selected_subject,
+                batch=selected_batch,
+            )
+        )
 
-    subsections = fetch_all(
-        "SELECT DISTINCT batch FROM users WHERE role='student' AND batch IS NOT NULL ORDER BY batch"
-    )
     students = []
-    if selected_batch:
+    if selected_option_is_valid:
         students = fetch_all(
             "SELECT id, username, full_name, sem, section, batch FROM users "
-            "WHERE role='student' AND batch=%s ORDER BY username ASC",
-            (selected_batch,),
+            "WHERE role='student' AND sem=%s AND batch=%s ORDER BY username ASC",
+            (int(selected_sem), selected_batch),
         )
     return render_template(
         "bulk_reset_passwords.html",
-        subsections=subsections,
+        subsection_options=subsection_options,
+        selected_sem=selected_sem,
+        selected_subject=selected_subject,
         selected_batch=selected_batch,
+        selected_option_is_valid=selected_option_is_valid,
         students=students,
         reset_password=BULK_RESET_PASSWORD,
     )

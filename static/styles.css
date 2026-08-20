@@ -1,0 +1,12 @@
+body {
+  background: #f6f8fb;
+}
+
+.card {
+  border-radius: 10px;
+}
+
+.waiting-count-highlight {
+  background-color: #fff3cd;
+  font-weight: 700;
+}

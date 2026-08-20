@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <h4 class="mb-3">{{ quiz.title }}</h4>
+        <p class="mb-2">You are marked as <strong>ready</strong>.</p>
+        <p class="text-muted mb-3">Please wait for faculty to start the quiz.</p>
+        <div class="spinner-border text-primary mb-3" role="status"></div>
+        <div>
+          <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-primary">Refresh</a>
+          <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">Back</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  setTimeout(function () {
+    window.location.reload();
+  }, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-0">{{ quiz.title }} - MCQs</h3>
+    <div class="text-muted">
+      {{ quiz.quiz_date }} |
+      Sem {{ quiz.sem }}{{ quiz.section }}{% if quiz.batch %} ({{ quiz.batch }}){% endif %} |
+      {{ quiz.subject_code }}
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin_dashboard') }}">Back</a>
+</div>
+
+<div class="card">
+  <div class="card-header">All Questions with Correct Answers</div>
+  <div class="card-body">
+    {% for q in questions %}
+      <div class="mb-4">
+        <p><strong>Q{{ loop.index }}.</strong> {{ q.question }}</p>
+        <ol type="A" class="mb-2">
+          <li {% if q.correct_option == 'A' %}class="fw-bold text-success"{% endif %}>{{ q.option_a }}</li>
+          <li {% if q.correct_option == 'B' %}class="fw-bold text-success"{% endif %}>{{ q.option_b }}</li>
+          <li {% if q.correct_option == 'C' %}class="fw-bold text-success"{% endif %}>{{ q.option_c }}</li>
+          <li {% if q.correct_option == 'D' %}class="fw-bold text-success"{% endif %}>{{ q.option_d }}</li>
+        </ol>
+        <div class="alert alert-success py-2 mb-0">
+          <strong>Correct Answer:</strong>
+          {{ q.correct_option }} -
+          {% if q.correct_option == 'A' %}{{ q.option_a }}
+          {% elif q.correct_option == 'B' %}{{ q.option_b }}
+          {% elif q.correct_option == 'C' %}{{ q.option_c }}
+          {% elif q.correct_option == 'D' %}{{ q.option_d }}
+          {% endif %}
+        </div>
+      </div>
+      {% if not loop.last %}<hr>{% endif %}
+    {% else %}
+      <div class="text-center p-3">No MCQs found for this quiz.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

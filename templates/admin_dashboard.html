@@ -12,17 +12,20 @@
 </div>
 
 <div class="card mb-4">
-  <div class="card-header">Filter Quiz List (Sem / Section / Subject)</div>
+  <div class="card-header">Filter Quiz List (Sem / Subsection / Subject)</div>
   <div class="card-body">
     <form method="get" action="{{ url_for('admin_dashboard') }}" class="row g-2">
       <div class="col-md-9">
         <select class="form-select" name="mapping">
-          <option value="">Select mapping (Sem/Section/Subject)</option>
+          <option value="">Select mapping (Sem/Subsection/Subject)</option>
           {% for a in assignments %}
-          {% set val = a.sem ~ '|' ~ a.section ~ '|' ~ a.subject_code %}
-          <option value="{{ val }}" {% if filter_mapping == val %}selected{% endif %}>
-            Sem {{ a.sem }} - {{ a.section }} - {{ a.subject_code }}
-          </option>
+            {% for subsection_number in range(1, 4) %}
+            {% set subsection = a.section ~ subsection_number %}
+            {% set val = a.sem ~ '|' ~ a.section ~ '|' ~ subsection ~ '|' ~ a.subject_code %}
+            <option value="{{ val }}" {% if filter_mapping == val %}selected{% endif %}>
+              Sem {{ a.sem }} - {{ subsection }} - {{ a.subject_code }}
+            </option>
+            {% endfor %}
           {% endfor %}
         </select>
       </div>

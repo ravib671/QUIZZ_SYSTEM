@@ -79,7 +79,13 @@
           <td>{{ item.subject_code }}</td>
           <td>{{ item.quiz_date }}</td>
           <td>{{ item.marks_out_of_5 }}</td>
-          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('review_quiz_attempt', quiz_id=item.quiz_id) }}">View</a></td>
+          <td>
+            {% if item.review_available %}
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('review_quiz_attempt', quiz_id=item.quiz_id) }}">View</a>
+            {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled title="Available after every student in the subsection completes the quiz">Locked</button>
+            {% endif %}
+          </td>
         </tr>
       {% else %}
         <tr><td colspan="5" class="text-center p-3">No attempts yet.</td></tr>

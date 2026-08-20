@@ -87,17 +87,10 @@
 </div>
 
 <div class="card mb-4">
-  <div class="card-header">Reset User Password (Simple Recovery)</div>
+  <div class="card-header">Bulk Student Password Reset</div>
   <div class="card-body">
-    <form method="post">
-      <input type="hidden" name="action" value="reset_user_password">
-      <div class="row g-2">
-        <div class="col-md-4"><input class="form-control" name="username" placeholder="Username (USN/admin username)" required></div>
-        <div class="col-md-4"><input class="form-control" name="new_password" type="password" placeholder="New Temporary Password" required></div>
-        <div class="col-md-4"><button class="btn btn-warning w-100" type="submit">Reset Password</button></div>
-      </div>
-      <div class="form-text mt-2">Ask user to login and immediately change password.</div>
-    </form>
+    <p>Select a subsection, choose multiple students, and reset their passwords to the standard temporary password.</p>
+    <a class="btn btn-warning" href="{{ url_for('bulk_reset_student_passwords') }}" target="_blank" rel="noopener">Open Bulk Password Reset</a>
   </div>
 </div>
 

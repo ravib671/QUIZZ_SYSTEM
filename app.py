@@ -32,6 +32,7 @@ app.secret_key = os.getenv("SECRET_KEY", "change-me")
 
 SUPER_ADMIN_USERNAME = os.getenv("SUPER_ADMIN_USERNAME", "superadmin")
 SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD", "Super@123")
+BULK_RESET_PASSWORD = "Nitte@123"
 
 
 def is_password_strong(password):
@@ -248,25 +249,6 @@ def super_admin_dashboard():
             )
             flash("Subject assignment saved.", "success")
             return redirect(url_for("super_admin_dashboard"))
-        if action == "reset_user_password":
-            username = request.form.get("username", "").strip()
-            new_password = request.form.get("new_password", "").strip()
-            if not username or not new_password:
-                flash("Username and new password are required.", "danger")
-                return redirect(url_for("super_admin_dashboard"))
-            if not is_password_strong(new_password):
-                flash("New password must be strong.", "danger")
-                return redirect(url_for("super_admin_dashboard"))
-            target = fetch_one("SELECT id, role FROM users WHERE username=%s", (username,))
-            if not target:
-                flash("User not found.", "warning")
-                return redirect(url_for("super_admin_dashboard"))
-            execute_query(
-                "UPDATE users SET password=%s WHERE id=%s",
-                (generate_password_hash(new_password), target["id"]),
-            )
-            flash(f"Password reset successful for {username}.", "success")
-            return redirect(url_for("super_admin_dashboard"))
         if action == "delete_admin":
             admin_id = request.form.get("admin_id", "").strip()
             if not admin_id or not admin_id.isdigit():
@@ -299,6 +281,61 @@ def super_admin_dashboard():
     return render_template("super_admin_dashboard.html", admins=admins, assignments=assignments)
 
 
+@app.route("/super-admin/students/reset-passwords", methods=["GET", "POST"])
+@login_required(role="super_admin")
+def bulk_reset_student_passwords():
+    selected_batch = request.values.get("batch", "").strip().upper()
+
+    if request.method == "POST":
+        student_ids = request.form.getlist("student_ids")
+        if not selected_batch or not re.fullmatch(r"[A-Z][1-3]", selected_batch):
+            flash("Select a valid subsection.", "danger")
+            return redirect(url_for("bulk_reset_student_passwords"))
+        if not student_ids or any(not student_id.isdigit() for student_id in student_ids):
+            flash("Select at least one student.", "warning")
+            return redirect(url_for("bulk_reset_student_passwords", batch=selected_batch))
+
+        placeholders = ", ".join(["%s"] * len(student_ids))
+        eligible_students = fetch_all(
+            f"SELECT id FROM users WHERE role='student' AND batch=%s AND id IN ({placeholders})",
+            (selected_batch, *[int(student_id) for student_id in student_ids]),
+        )
+        eligible_ids = [student["id"] for student in eligible_students]
+        if not eligible_ids:
+            flash("No valid students were selected for this subsection.", "warning")
+            return redirect(url_for("bulk_reset_student_passwords", batch=selected_batch))
+
+        password_hash = generate_password_hash(BULK_RESET_PASSWORD)
+        execute_query(
+            "UPDATE users SET password=%s WHERE id=%s AND role='student'",
+            [(password_hash, student_id) for student_id in eligible_ids],
+            many=True,
+        )
+        flash(
+            f"Password reset to {BULK_RESET_PASSWORD} for {len(eligible_ids)} student(s).",
+            "success",
+        )
+        return redirect(url_for("bulk_reset_student_passwords", batch=selected_batch))
+
+    subsections = fetch_all(
+        "SELECT DISTINCT batch FROM users WHERE role='student' AND batch IS NOT NULL ORDER BY batch"
+    )
+    students = []
+    if selected_batch:
+        students = fetch_all(
+            "SELECT id, username, full_name, sem, section, batch FROM users "
+            "WHERE role='student' AND batch=%s ORDER BY username ASC",
+            (selected_batch,),
+        )
+    return render_template(
+        "bulk_reset_passwords.html",
+        subsections=subsections,
+        selected_batch=selected_batch,
+        students=students,
+        reset_password=BULK_RESET_PASSWORD,
+    )
+
+
 @app.route("/student")
 @login_required(role="student")
 def student_dashboard():
@@ -327,7 +364,12 @@ def student_dashboard():
     history = fetch_all(
         """
         SELECT q.id AS quiz_id, q.title, q.quiz_date, q.subject_code, q.sem, q.section, q.batch, qa.score, qa.total_questions,
-               ROUND((qa.score / NULLIF(qa.total_questions, 0)) * 5, 2) AS marks_out_of_5
+               ROUND((qa.score / NULLIF(qa.total_questions, 0)) * 5, 2) AS marks_out_of_5,
+               (SELECT COUNT(*) FROM users eligible
+                WHERE eligible.role='student' AND eligible.sem=q.sem AND eligible.section=q.section
+                  AND (q.batch IS NULL OR eligible.batch=q.batch)) AS eligible_count,
+               (SELECT COUNT(*) FROM quiz_attempts completed
+                WHERE completed.quiz_id=q.id) AS attempt_count
         FROM quiz_attempts qa
         JOIN quizzes q ON q.id=qa.quiz_id
         WHERE qa.student_id=%s
@@ -335,6 +377,11 @@ def student_dashboard():
         """,
         (user_id,),
     )
+    for item in history:
+        item["review_available"] = (
+            int(item.get("eligible_count") or 0) > 0
+            and int(item.get("attempt_count") or 0) >= int(item.get("eligible_count") or 0)
+        )
 
     record_history = fetch_all(
         """
@@ -647,7 +694,9 @@ def review_quiz_attempt(quiz_id):
     quiz = fetch_one(
         """
         SELECT q.id, q.title, q.quiz_date, q.sem, q.section, q.batch,
-               (SELECT COUNT(*) FROM quiz_waiting qw WHERE qw.quiz_id=q.id) AS waiting_count,
+               (SELECT COUNT(*) FROM users eligible
+                WHERE eligible.role='student' AND eligible.sem=q.sem AND eligible.section=q.section
+                  AND (q.batch IS NULL OR eligible.batch=q.batch)) AS eligible_count,
                (SELECT COUNT(*) FROM quiz_attempts qa2 WHERE qa2.quiz_id=q.id) AS attempt_count
         FROM quizzes q
         WHERE q.id=%s
@@ -673,7 +722,9 @@ def review_quiz_attempt(quiz_id):
         flash("You have not attempted this quiz yet.", "warning")
         return redirect(url_for("student_dashboard"))
 
-    is_completed = bool(quiz["attempt_count"] > 0 and quiz["waiting_count"] == 0)
+    is_completed = bool(
+        quiz["eligible_count"] > 0 and quiz["attempt_count"] >= quiz["eligible_count"]
+    )
     if not is_completed:
         flash("Answer review will be available after all students submit.", "info")
         return redirect(url_for("student_dashboard"))
@@ -708,13 +759,16 @@ def admin_dashboard():
     filter_mapping = request.args.get("mapping", "").strip()
     filter_sem = request.args.get("sem", "").strip()
     filter_section = request.args.get("section", "").strip().upper()
+    filter_batch = request.args.get("batch", "").strip().upper()
     filter_subject = request.args.get("subject_code", "").strip().upper()
-    if filter_mapping and (not filter_sem or not filter_section or not filter_subject):
+    if filter_mapping and (not filter_sem or not filter_batch or not filter_subject):
         parts = filter_mapping.split("|")
-        if len(parts) == 3:
-            filter_sem, filter_section, filter_subject = parts[0], parts[1].upper(), parts[2].upper()
-    if (not filter_mapping) and filter_sem and filter_section and filter_subject:
-        filter_mapping = f"{filter_sem}|{filter_section}|{filter_subject}"
+        if len(parts) == 4:
+            filter_sem, filter_section, filter_batch, filter_subject = (
+                parts[0], parts[1].upper(), parts[2].upper(), parts[3].upper()
+            )
+    if (not filter_mapping) and filter_sem and filter_section and filter_batch and filter_subject:
+        filter_mapping = f"{filter_sem}|{filter_section}|{filter_batch}|{filter_subject}"
     where_sql = "q.admin_id=%s"
     params = [admin_id]
     if filter_sem:
@@ -723,6 +777,9 @@ def admin_dashboard():
     if filter_section:
         where_sql += " AND q.section=%s"
         params.append(filter_section)
+    if filter_batch:
+        where_sql += " AND q.batch=%s"
+        params.append(filter_batch)
     if filter_subject:
         where_sql += " AND q.subject_code=%s"
         params.append(filter_subject)
@@ -876,6 +933,7 @@ def admin_dashboard():
         assignments=assignments,
         filter_sem=filter_sem,
         filter_section=filter_section,
+        filter_batch=filter_batch,
         filter_subject=filter_subject,
         filter_mapping=filter_mapping,
     )
